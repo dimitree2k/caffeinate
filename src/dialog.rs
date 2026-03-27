@@ -1,4 +1,5 @@
 use std::cell::Cell;
+use std::sync::Once;
 use windows::core::*;
 use windows::Win32::Foundation::*;
 use windows::Win32::UI::WindowsAndMessaging::*;
@@ -15,23 +16,27 @@ thread_local! {
     static EDIT_HANDLE: Cell<HWND> = Cell::new(HWND::default());
 }
 
+static DIALOG_CLASS_INIT: Once = Once::new();
+
 pub fn show_custom_timer_dialog(parent: HWND) -> Option<u32> {
     unsafe {
         DIALOG_RESULT.with(|r| r.set(None));
 
         let instance = GetWindowLongPtrW(parent, GWL_HINSTANCE);
 
-        let class_name = w!("CaffeinateDialog");
-        let wc = WNDCLASSEXW {
-            cbSize: std::mem::size_of::<WNDCLASSEXW>() as u32,
-            lpfnWndProc: Some(dialog_proc),
-            hInstance: HINSTANCE(instance as *mut _),
-            lpszClassName: class_name,
-            hbrBackground: GetSysColorBrush(COLOR_3DFACE),
-            hCursor: LoadCursorW(None, IDC_ARROW).ok(),
-            ..Default::default()
-        };
-        RegisterClassExW(&wc);
+        DIALOG_CLASS_INIT.call_once(|| {
+            let class_name = w!("CaffeinateDialog");
+            let wc = WNDCLASSEXW {
+                cbSize: std::mem::size_of::<WNDCLASSEXW>() as u32,
+                lpfnWndProc: Some(dialog_proc),
+                hInstance: HINSTANCE(instance as *mut _),
+                lpszClassName: class_name,
+                hbrBackground: GetSysColorBrush(COLOR_3DFACE), // System brush — must not be deleted
+                hCursor: LoadCursorW(None, IDC_ARROW).ok(),
+                ..Default::default()
+            };
+            RegisterClassExW(&wc);
+        });
 
         // Center on screen
         let screen_w = GetSystemMetrics(SM_CXSCREEN);
@@ -41,7 +46,7 @@ pub fn show_custom_timer_dialog(parent: HWND) -> Option<u32> {
 
         let dlg = CreateWindowExW(
             WS_EX_DLGMODALFRAME | WS_EX_TOPMOST,
-            class_name,
+            w!("CaffeinateDialog"),
             w!("Custom Timer"),
             WS_POPUP | WS_CAPTION | WS_SYSMENU,
             x, y, DLG_WIDTH, DLG_HEIGHT,
@@ -143,12 +148,20 @@ unsafe extern "system" fn dialog_proc(
                     let mut buf = [0u16; 16];
                     let len = GetWindowTextW(edit, &mut buf);
                     let text = String::from_utf16_lossy(&buf[..len as usize]);
-                    if let Ok(mins) = text.trim().parse::<u32>() {
-                        if mins > 0 && mins <= 1440 {
-                            DIALOG_RESULT.with(|r| r.set(Some(mins)));
-                        }
+                    let valid = text.trim().parse::<u32>()
+                        .ok()
+                        .filter(|&m| m > 0 && m <= 1440);
+                    if let Some(mins) = valid {
+                        DIALOG_RESULT.with(|r| r.set(Some(mins)));
+                        let _ = DestroyWindow(hwnd);
+                    } else {
+                        MessageBoxW(
+                            Some(hwnd),
+                            w!("Enter a value between 1 and 1440 minutes."),
+                            w!("Invalid Input"),
+                            MB_OK | MB_ICONWARNING,
+                        );
                     }
-                    let _ = DestroyWindow(hwnd);
                 }
                 ID_CANCEL => {
                     let _ = DestroyWindow(hwnd);
