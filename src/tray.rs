@@ -96,3 +96,15 @@ pub fn show_balloon(hwnd: HWND, title: &str, message: &str) {
         let _ = Shell_NotifyIconW(NIM_MODIFY, &nid);
     }
 }
+
+pub fn update_tooltip(hwnd: HWND, text: &str) {
+    unsafe {
+        let mut nid = NOTIFYICONDATAW::default();
+        nid.cbSize = std::mem::size_of::<NOTIFYICONDATAW>() as u32;
+        nid.hWnd = hwnd;
+        nid.uID = TRAY_ICON_ID;
+        nid.uFlags = NIF_TIP;
+        wstr_copy(&mut nid.szTip, text);
+        let _ = Shell_NotifyIconW(NIM_MODIFY, &nid);
+    }
+}
