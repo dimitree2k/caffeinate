@@ -106,6 +106,7 @@ unsafe extern "system" fn wndproc(
             LRESULT(0)
         }
         WM_DESTROY => {
+            awake::disable();
             tray::remove_tray_icon(hwnd);
             PostQuitMessage(0);
             LRESULT(0)
@@ -116,6 +117,28 @@ unsafe extern "system" fn wndproc(
 
 fn handle_command(hwnd: HWND, cmd: u16) {
     match cmd {
+        CMD_KEEP_AWAKE => {
+            STATE.with(|s| {
+                let mut state = s.borrow_mut();
+                if state.awake_active {
+                    // Turn off — also cancel any running timer
+                    awake::disable();
+                    if state.timer_active {
+                        timer::stop(hwnd);
+                        state.timer_active = false;
+                    }
+                    state.awake_active = false;
+                } else {
+                    // Turn on indefinitely — cancel any running timer
+                    if state.timer_active {
+                        timer::stop(hwnd);
+                        state.timer_active = false;
+                    }
+                    awake::enable();
+                    state.awake_active = true;
+                }
+            });
+        }
         CMD_QUIT => unsafe {
             let _ = DestroyWindow(hwnd);
         },
