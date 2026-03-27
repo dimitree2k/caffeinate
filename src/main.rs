@@ -57,7 +57,7 @@ fn main() -> Result<()> {
             return Ok(()); // Another instance is already running
         }
         let _mutex = CreateMutexW(None, false, w!("CaffeinateAppMutex"))?;
-        std::mem::forget(_mutex); // Keep alive until process exits
+        let _ = _mutex; // Keep alive until process exits
 
         let instance = GetModuleHandleW(None)?;
         let class_name = w!("CaffeinateClass");
@@ -78,9 +78,9 @@ fn main() -> Result<()> {
             w!("Caffeinate"),
             WINDOW_STYLE::default(),
             0, 0, 0, 0,
-            None,
-            None,
-            Some(instance.into()),
+            HWND::default(),
+            HMENU::default(),
+            instance,
             None,
         )?;
 

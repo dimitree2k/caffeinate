@@ -2,6 +2,7 @@ use std::cell::Cell;
 use std::sync::Once;
 use windows::core::*;
 use windows::Win32::Foundation::*;
+use windows::Win32::UI::Input::KeyboardAndMouse::{EnableWindow, SetFocus};
 use windows::Win32::UI::WindowsAndMessaging::*;
 use windows::Win32::Graphics::Gdi::*;
 
@@ -29,10 +30,10 @@ pub fn show_custom_timer_dialog(parent: HWND) -> Option<u32> {
             let wc = WNDCLASSEXW {
                 cbSize: std::mem::size_of::<WNDCLASSEXW>() as u32,
                 lpfnWndProc: Some(dialog_proc),
-                hInstance: HINSTANCE(instance as *mut _),
+                hInstance: HINSTANCE(instance as _),
                 lpszClassName: class_name,
-                hbrBackground: GetSysColorBrush(COLOR_3DFACE), // System brush — must not be deleted
-                hCursor: LoadCursorW(None, IDC_ARROW).ok(),
+                hbrBackground: GetSysColorBrush(COLOR_3DFACE),
+                hCursor: LoadCursorW(HINSTANCE::default(), IDC_ARROW).unwrap_or_default(),
                 ..Default::default()
             };
             RegisterClassExW(&wc);
@@ -50,9 +51,9 @@ pub fn show_custom_timer_dialog(parent: HWND) -> Option<u32> {
             w!("Custom Timer"),
             WS_POPUP | WS_CAPTION | WS_SYSMENU,
             x, y, DLG_WIDTH, DLG_HEIGHT,
-            Some(parent),
-            None,
-            Some(HINSTANCE(instance as *mut _)),
+            parent,
+            HMENU::default(),
+            HINSTANCE(instance as _),
             None,
         ).expect("CreateWindowExW dialog");
 
@@ -63,9 +64,9 @@ pub fn show_custom_timer_dialog(parent: HWND) -> Option<u32> {
             w!("Minutes:"),
             WS_CHILD | WS_VISIBLE,
             15, 20, 60, 20,
-            Some(dlg),
-            None,
-            Some(HINSTANCE(instance as *mut _)),
+            dlg,
+            HMENU::default(),
+            HINSTANCE(instance as _),
             None,
         ).expect("label");
 
@@ -77,9 +78,9 @@ pub fn show_custom_timer_dialog(parent: HWND) -> Option<u32> {
             WS_CHILD | WS_VISIBLE | WS_TABSTOP
                 | WINDOW_STYLE(0x2000), // ES_NUMBER
             80, 18, 80, 24,
-            Some(dlg),
-            HMENU(ID_EDIT as *mut _),
-            Some(HINSTANCE(instance as *mut _)),
+            dlg,
+            HMENU(ID_EDIT as _),
+            HINSTANCE(instance as _),
             None,
         ).expect("edit");
         EDIT_HANDLE.with(|h| h.set(edit));
@@ -91,9 +92,9 @@ pub fn show_custom_timer_dialog(parent: HWND) -> Option<u32> {
             w!("OK"),
             WS_CHILD | WS_VISIBLE | WS_TABSTOP | WINDOW_STYLE(0x0001),
             50, 60, 70, 28,
-            Some(dlg),
-            HMENU(ID_OK as *mut _),
-            Some(HINSTANCE(instance as *mut _)),
+            dlg,
+            HMENU(ID_OK as _),
+            HINSTANCE(instance as _),
             None,
         ).expect("ok button");
 
@@ -104,9 +105,9 @@ pub fn show_custom_timer_dialog(parent: HWND) -> Option<u32> {
             w!("Cancel"),
             WS_CHILD | WS_VISIBLE | WS_TABSTOP,
             135, 60, 70, 28,
-            Some(dlg),
-            HMENU(ID_CANCEL as *mut _),
-            Some(HINSTANCE(instance as *mut _)),
+            dlg,
+            HMENU(ID_CANCEL as _),
+            HINSTANCE(instance as _),
             None,
         ).expect("cancel button");
 
@@ -156,7 +157,7 @@ unsafe extern "system" fn dialog_proc(
                         let _ = DestroyWindow(hwnd);
                     } else {
                         MessageBoxW(
-                            Some(hwnd),
+                            hwnd,
                             w!("Enter a value between 1 and 1440 minutes."),
                             w!("Invalid Input"),
                             MB_OK | MB_ICONWARNING,
