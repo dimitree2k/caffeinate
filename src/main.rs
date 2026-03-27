@@ -86,7 +86,7 @@ fn main() -> Result<()> {
 
         STATE.with(|s| s.borrow_mut().hwnd = hwnd);
 
-        let icon_handle = icon::create_placeholder_icon()?;
+        let icon_handle = icon::create_icon()?;
         tray::add_tray_icon(hwnd, icon_handle)?;
         STATE.with(|s| s.borrow_mut().icon_handle = Some(icon_handle));
 
