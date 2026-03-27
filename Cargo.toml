@@ -3,6 +3,9 @@ name = "caffeinate"
 version = "0.1.0"
 edition = "2021"
 
+[dependencies]
+image = { version = "0.25", default-features = false, features = ["png"] }
+
 [dependencies.windows]
 version = "0.58"
 features = [
