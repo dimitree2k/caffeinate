@@ -82,3 +82,17 @@ pub fn show_context_menu(hwnd: HWND) {
         let _ = DestroyMenu(menu);
     }
 }
+
+pub fn show_balloon(hwnd: HWND, title: &str, message: &str) {
+    unsafe {
+        let mut nid = NOTIFYICONDATAW::default();
+        nid.cbSize = std::mem::size_of::<NOTIFYICONDATAW>() as u32;
+        nid.hWnd = hwnd;
+        nid.uID = TRAY_ICON_ID;
+        nid.uFlags = NIF_INFO;
+        nid.dwInfoFlags = NIIF_INFO;
+        wstr_copy(&mut nid.szInfoTitle, title);
+        wstr_copy(&mut nid.szInfo, message);
+        let _ = Shell_NotifyIconW(NIM_MODIFY, &nid);
+    }
+}
