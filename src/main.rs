@@ -108,6 +108,7 @@ unsafe extern "system" fn wndproc(
         WM_TIMER => {
             if wparam.0 == TIMER_ID {
                 timer::on_expired(hwnd);
+                update_tray_status(hwnd);
             }
             LRESULT(0)
         }
@@ -167,4 +168,19 @@ fn handle_command(hwnd: HWND, cmd: u16) {
         },
         _ => {}
     }
+    update_tray_status(hwnd);
+}
+
+fn update_tray_status(hwnd: HWND) {
+    STATE.with(|s| {
+        let state = s.borrow();
+        let tip = if state.timer_active {
+            "Caffeinate \u{2014} timer active"
+        } else if state.awake_active {
+            "Caffeinate \u{2014} keeping awake"
+        } else {
+            "Caffeinate \u{2014} idle"
+        };
+        tray::update_tooltip(hwnd, tip);
+    });
 }
