@@ -25,8 +25,8 @@ pub fn activate(parent: HWND) {
                 lpfnWndProc: Some(blackout_proc),
                 hInstance: instance.into(),
                 lpszClassName: class_name,
-                hbrBackground: HBRUSH(GetStockObject(BLACK_BRUSH).0),
-                hCursor: LoadCursorW(None, IDC_ARROW).ok(),
+                hbrBackground: HBRUSH(GetStockObject(BLACK_BRUSH).0 as _),
+                hCursor: LoadCursorW(HINSTANCE::default(), IDC_ARROW).unwrap_or_default(),
                 ..Default::default()
             };
             RegisterClassExW(&wc);
@@ -43,9 +43,9 @@ pub fn activate(parent: HWND) {
             w!(""),
             WS_POPUP | WS_VISIBLE,
             vx, vy, vw, vh,
-            None,
-            None,
-            Some(instance.into()),
+            HWND::default(),
+            HMENU::default(),
+            instance,
             None,
         ) {
             Ok(hwnd) => hwnd,
@@ -62,7 +62,7 @@ pub fn activate(parent: HWND) {
         let _ = ShowWindow(blackout, SW_SHOW);
         let _ = SetForegroundWindow(blackout);
 
-        LockWorkStation();
+        let _ = LockWorkStation();
     }
 }
 
@@ -84,9 +84,9 @@ unsafe extern "system" fn blackout_proc(
         WM_PAINT => {
             let mut ps = PAINTSTRUCT::default();
             let hdc = BeginPaint(hwnd, &mut ps);
-            let brush = HBRUSH(GetStockObject(BLACK_BRUSH).0);
+            let brush = HBRUSH(GetStockObject(BLACK_BRUSH).0 as _);
             FillRect(hdc, &ps.rcPaint, brush);
-            EndPaint(hwnd, &ps);
+            let _ = EndPaint(hwnd, &ps);
             LRESULT(0)
         }
         _ => DefWindowProcW(hwnd, msg, wparam, lparam),
