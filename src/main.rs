@@ -150,6 +150,11 @@ fn handle_command(hwnd: HWND, cmd: u16) {
         CMD_TIMER_30 => timer::start(hwnd, 30),
         CMD_TIMER_60 => timer::start(hwnd, 60),
         CMD_TIMER_120 => timer::start(hwnd, 120),
+        CMD_TIMER_CUSTOM => {
+            if let Some(minutes) = dialog::show_custom_timer_dialog(hwnd) {
+                timer::start(hwnd, minutes);
+            }
+        }
         CMD_QUIT => unsafe {
             let _ = DestroyWindow(hwnd);
         },
