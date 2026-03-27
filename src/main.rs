@@ -93,11 +93,32 @@ unsafe extern "system" fn wndproc(
     hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM,
 ) -> LRESULT {
     match msg {
+        WM_TRAY_CALLBACK => {
+            let event = (lparam.0 & 0xFFFF) as u32;
+            if event == WM_RBUTTONUP {
+                tray::show_context_menu(hwnd);
+            }
+            LRESULT(0)
+        }
+        WM_COMMAND => {
+            let cmd = (wparam.0 & 0xFFFF) as u16;
+            handle_command(hwnd, cmd);
+            LRESULT(0)
+        }
         WM_DESTROY => {
             tray::remove_tray_icon(hwnd);
             PostQuitMessage(0);
             LRESULT(0)
         }
         _ => DefWindowProcW(hwnd, msg, wparam, lparam),
+    }
+}
+
+fn handle_command(hwnd: HWND, cmd: u16) {
+    match cmd {
+        CMD_QUIT => unsafe {
+            let _ = DestroyWindow(hwnd);
+        },
+        _ => {}
     }
 }
