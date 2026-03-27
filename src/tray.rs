@@ -26,7 +26,7 @@ pub fn add_tray_icon(hwnd: HWND, icon: HICON) -> Result<()> {
         nid.hIcon = icon;
         wstr_copy(&mut nid.szTip, "Caffeinate");
 
-        Shell_NotifyIconW(NIM_ADD, &nid)?;
+        let _ = Shell_NotifyIconW(NIM_ADD, &nid);
         Ok(())
     }
 }
@@ -72,10 +72,10 @@ pub fn show_context_menu(hwnd: HWND) {
         let _ = GetCursorPos(&mut pt);
 
         // Required for menu to dismiss properly
-        SetForegroundWindow(hwnd);
-        TrackPopupMenuEx(
+        let _ = SetForegroundWindow(hwnd);
+        let _ = TrackPopupMenuEx(
             menu,
-            TPM_LEFTALIGN | TPM_BOTTOMALIGN,
+            (TPM_LEFTALIGN | TPM_BOTTOMALIGN).0,
             pt.x, pt.y, hwnd, None,
         );
         let _ = PostMessageW(hwnd, WM_NULL, WPARAM(0), LPARAM(0));
