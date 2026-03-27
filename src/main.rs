@@ -155,6 +155,13 @@ fn handle_command(hwnd: HWND, cmd: u16) {
                 timer::start(hwnd, minutes);
             }
         }
+        CMD_BLACKOUT => {
+            // Only one blackout at a time
+            let already_active = STATE.with(|s| s.borrow().blackout_hwnd.is_some());
+            if !already_active {
+                blackout::activate(hwnd);
+            }
+        }
         CMD_QUIT => unsafe {
             let _ = DestroyWindow(hwnd);
         },
