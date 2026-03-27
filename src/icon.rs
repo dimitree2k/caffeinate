@@ -3,87 +3,47 @@ use windows::Win32::Foundation::*;
 use windows::Win32::Graphics::Gdi::*;
 use windows::Win32::UI::WindowsAndMessaging::*;
 
-// Embed the PNG at compile time
-const ICON_PNG: &[u8] = include_bytes!("../icons8-cup-stickers-32.png");
+// Pre-converted .ico embedded at compile time (16x16 + 32x32, 32-bit RGBA)
+const ICON_ICO: &[u8] = include_bytes!("../caffeinate.ico");
 
-/// Load the embedded PNG and create an HICON from it.
-/// Falls back to a solid coffee-brown square if decoding fails.
+/// Load the embedded .ico file and create an HICON.
+/// Falls back to a solid coffee-brown square if loading fails.
 pub fn create_icon() -> Result<HICON> {
-    match create_icon_from_png() {
-        Some(icon) => Ok(icon),
-        None => create_placeholder_icon(),
-    }
+    create_icon_from_ico().or_else(|_| create_placeholder_icon())
 }
 
-fn create_icon_from_png() -> Option<HICON> {
-    let img = image::load_from_memory_with_format(ICON_PNG, image::ImageFormat::Png).ok()?;
-    let rgba = img.to_rgba8();
-    let width = rgba.width() as i32;
-    let height = rgba.height() as i32;
-
-    // Win32 expects BGRA, not RGBA — swap R and B channels
-    // Also, DIB rows are bottom-up by default, but we'll use a top-down DIB (negative height)
-    let mut bgra: Vec<u8> = Vec::with_capacity((width * height * 4) as usize);
-    for pixel in rgba.pixels() {
-        bgra.push(pixel[2]); // B
-        bgra.push(pixel[1]); // G
-        bgra.push(pixel[0]); // R
-        bgra.push(pixel[3]); // A
-    }
-
+fn create_icon_from_ico() -> Result<HICON> {
     unsafe {
-        let hdc_screen = GetDC(None);
+        // ICO files contain a directory header; skip to the first image entry.
+        // ICO header: 3x u16 (6 bytes), then each entry is 16 bytes.
+        // Entry offset to image data is at bytes 18..22 (u32 LE).
+        // Entry image size is at bytes 14..18 (u32 LE).
+        if ICON_ICO.len() < 22 {
+            return Err(Error::empty());
+        }
 
-        // Create a BITMAPINFO for a 32-bit top-down DIB
-        let bmi = BITMAPINFO {
-            bmiHeader: BITMAPINFOHEADER {
-                biSize: std::mem::size_of::<BITMAPINFOHEADER>() as u32,
-                biWidth: width,
-                biHeight: -height, // negative = top-down
-                biPlanes: 1,
-                biBitCount: 32,
-                biCompression: 0, // BI_RGB
-                ..Default::default()
-            },
-            ..Default::default()
-        };
+        let data_size = u32::from_le_bytes([
+            ICON_ICO[14], ICON_ICO[15], ICON_ICO[16], ICON_ICO[17],
+        ]);
+        let data_offset = u32::from_le_bytes([
+            ICON_ICO[18], ICON_ICO[19], ICON_ICO[20], ICON_ICO[21],
+        ]) as usize;
 
-        // Create the color bitmap
-        let mut bits: *mut std::ffi::c_void = std::ptr::null_mut();
-        let color_bmp = CreateDIBSection(
-            hdc_screen,
-            &bmi,
-            DIB_RGB_COLORS,
-            &mut bits,
-            None,
-            0,
-        ).ok()?;
+        if data_offset + data_size as usize > ICON_ICO.len() {
+            return Err(Error::empty());
+        }
 
-        // Copy BGRA data into the bitmap
-        std::ptr::copy_nonoverlapping(
-            bgra.as_ptr(),
-            bits as *mut u8,
-            bgra.len(),
-        );
+        let icon_data = &ICON_ICO[data_offset..data_offset + data_size as usize];
 
-        // Create the mask bitmap (all zeros = fully opaque when color has alpha)
-        let mask_bmp = CreateBitmap(width, height, 1, 1, None);
+        let icon = CreateIconFromResourceEx(
+            icon_data,
+            true, // fIcon
+            0x00030000, // version (required: 0x00030000)
+            16, 16,
+            LR_DEFAULTCOLOR,
+        )?;
 
-        let icon_info = ICONINFO {
-            fIcon: BOOL::from(true),
-            xHotspot: 0,
-            yHotspot: 0,
-            hbmMask: mask_bmp,
-            hbmColor: color_bmp,
-        };
-
-        let icon = CreateIconIndirect(&icon_info).ok();
-
-        let _ = DeleteObject(color_bmp);
-        let _ = DeleteObject(mask_bmp);
-        ReleaseDC(None, hdc_screen);
-
-        icon
+        Ok(icon)
     }
 }
 
