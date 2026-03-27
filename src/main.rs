@@ -105,7 +105,14 @@ unsafe extern "system" fn wndproc(
             handle_command(hwnd, cmd);
             LRESULT(0)
         }
+        WM_TIMER => {
+            if wparam.0 == TIMER_ID {
+                timer::on_expired(hwnd);
+            }
+            LRESULT(0)
+        }
         WM_DESTROY => {
+            timer::stop(hwnd);
             awake::disable();
             tray::remove_tray_icon(hwnd);
             PostQuitMessage(0);
@@ -139,6 +146,10 @@ fn handle_command(hwnd: HWND, cmd: u16) {
                 }
             });
         }
+        CMD_TIMER_15 => timer::start(hwnd, 15),
+        CMD_TIMER_30 => timer::start(hwnd, 30),
+        CMD_TIMER_60 => timer::start(hwnd, 60),
+        CMD_TIMER_120 => timer::start(hwnd, 120),
         CMD_QUIT => unsafe {
             let _ = DestroyWindow(hwnd);
         },
