@@ -1,5 +1,12 @@
 #![windows_subsystem = "windows"]
 
+mod awake;
+mod blackout;
+mod dialog;
+mod icon;
+mod timer;
+mod tray;
+
 use std::cell::RefCell;
 use windows::core::*;
 use windows::Win32::Foundation::*;
@@ -69,6 +76,9 @@ fn main() -> Result<()> {
 
         STATE.with(|s| s.borrow_mut().hwnd = hwnd);
 
+        let icon_handle = icon::create_placeholder_icon()?;
+        tray::add_tray_icon(hwnd, icon_handle)?;
+
         let mut msg = MSG::default();
         while GetMessageW(&mut msg, None, 0, 0).as_bool() {
             let _ = TranslateMessage(&msg);
@@ -84,6 +94,7 @@ unsafe extern "system" fn wndproc(
 ) -> LRESULT {
     match msg {
         WM_DESTROY => {
+            tray::remove_tray_icon(hwnd);
             PostQuitMessage(0);
             LRESULT(0)
         }
