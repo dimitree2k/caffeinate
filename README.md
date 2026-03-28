@@ -2,7 +2,9 @@
 
 A lightweight system tray app that prevents your PC from sleeping — like macOS `caffeinate`, but for Windows.
 
-Single native exe, no .NET, no runtime, minimal footprint (~1.2 MB, <1 MB RAM).
+- single native exe
+- no .NET, no runtime
+- minimal footprint (~1.2 MB, <1 MB RAM)
 
 ## Install
 
