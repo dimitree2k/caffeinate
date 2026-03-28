@@ -1,4 +1,5 @@
 use std::sync::Once;
+use std::sync::atomic::{AtomicU64, Ordering};
 use windows::core::*;
 use windows::Win32::Foundation::*;
 use windows::Win32::Graphics::Gdi::*;
@@ -12,7 +13,15 @@ extern "system" {
     fn LockWorkStation() -> BOOL;
 }
 
+#[link(name = "kernel32")]
+extern "system" {
+    fn GetTickCount64() -> u64;
+}
+
 static BLACKOUT_CLASS_INIT: Once = Once::new();
+// Timestamp when the blackout window was created — ignore input for a grace period
+static BLACKOUT_CREATED_AT: AtomicU64 = AtomicU64::new(0);
+const GRACE_PERIOD_MS: u64 = 1000;
 
 pub fn activate(parent: HWND) {
     unsafe {
@@ -36,6 +45,8 @@ pub fn activate(parent: HWND) {
         let vy = GetSystemMetrics(SM_YVIRTUALSCREEN);
         let vw = GetSystemMetrics(SM_CXVIRTUALSCREEN);
         let vh = GetSystemMetrics(SM_CYVIRTUALSCREEN);
+
+        BLACKOUT_CREATED_AT.store(GetTickCount64(), Ordering::Relaxed);
 
         let blackout = match CreateWindowExW(
             WS_EX_TOPMOST | WS_EX_TOOLWINDOW,
@@ -78,7 +89,10 @@ unsafe extern "system" fn blackout_proc(
 ) -> LRESULT {
     match msg {
         WM_KEYDOWN | WM_LBUTTONDOWN => {
-            dismiss_blackout(hwnd);
+            let elapsed = GetTickCount64() - BLACKOUT_CREATED_AT.load(Ordering::Relaxed);
+            if elapsed >= GRACE_PERIOD_MS {
+                dismiss_blackout(hwnd);
+            }
             LRESULT(0)
         }
         WM_PAINT => {
