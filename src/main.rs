@@ -50,8 +50,18 @@ thread_local! {
     pub static STATE: RefCell<AppState> = RefCell::new(AppState::default());
 }
 
+// DPI awareness via raw FFI
+#[link(name = "user32")]
+extern "system" {
+    fn SetProcessDpiAwarenessContext(value: isize) -> i32;
+}
+const DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2: isize = -4;
+
 fn main() -> Result<()> {
     unsafe {
+        // Declare DPI awareness — prevents blurry text scaling
+        SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
+
         // Single-instance guard
         if OpenMutexW(MUTEX_ALL_ACCESS, false, w!("CaffeinateAppMutex")).is_ok() {
             return Ok(()); // Another instance is already running
