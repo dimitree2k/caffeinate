@@ -4,6 +4,14 @@ A lightweight system tray app that prevents your PC from sleeping — like macOS
 
 Single native exe, no .NET, no runtime, minimal footprint (~1.2 MB, <1 MB RAM).
 
+## Install
+
+There is no installer. Download `caffeinate.exe` from the [Releases](../../releases) page, put it wherever you want, and run it. That's it.
+
+No registry entries, no services, no dependencies, no setup wizard. One file — delete it when you're done.
+
+Windows SmartScreen may warn on first launch — click **"More info" → "Run anyway"**.
+
 ## Features
 
 - **Keep Awake** — toggle to prevent sleep and display off indefinitely
@@ -14,11 +22,9 @@ Single native exe, no .NET, no runtime, minimal footprint (~1.2 MB, <1 MB RAM).
 
 No admin rights required.
 
-## Download
-
-Grab `caffeinate.exe` from the [Releases](../../releases) page and run it. Windows SmartScreen may warn on first launch — click **"More info" → "Run anyway"**.
-
 ## Build from source
+
+If you don't want to download a pre-built binary, build it yourself:
 
 ### Prerequisites
 
