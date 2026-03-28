@@ -116,7 +116,7 @@ unsafe extern "system" fn wndproc(
     match msg {
         WM_TRAY_CALLBACK => {
             let event = (lparam.0 & 0xFFFF) as u32;
-            if event == WM_RBUTTONUP {
+            if event == WM_RBUTTONUP || event == WM_LBUTTONUP {
                 tray::show_context_menu(hwnd);
             }
             LRESULT(0)
