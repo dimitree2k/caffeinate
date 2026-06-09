@@ -31,7 +31,8 @@ pub struct AppState {
     pub awake_active: bool,
     pub timer_active: bool,
     pub blackout_hwnd: Option<HWND>,
-    pub icon_handle: Option<HICON>,
+    pub active_icon: Option<HICON>,
+    pub idle_icon: Option<HICON>,
 }
 
 impl Default for AppState {
@@ -41,7 +42,8 @@ impl Default for AppState {
             awake_active: false,
             timer_active: false,
             blackout_hwnd: None,
-            icon_handle: None,
+            active_icon: None,
+            idle_icon: None,
         }
     }
 }
@@ -96,9 +98,15 @@ fn main() -> Result<()> {
 
         STATE.with(|s| s.borrow_mut().hwnd = hwnd);
 
-        let icon_handle = icon::create_icon()?;
-        tray::add_tray_icon(hwnd, icon_handle)?;
-        STATE.with(|s| s.borrow_mut().icon_handle = Some(icon_handle));
+        let active_icon = icon::create_active_icon()?;
+        let idle_icon = icon::create_idle_icon()?;
+        tray::add_tray_icon(hwnd, idle_icon)?;
+        
+        STATE.with(|s| {
+            let mut state = s.borrow_mut();
+            state.active_icon = Some(active_icon);
+            state.idle_icon = Some(idle_icon);
+        });
 
         let mut msg = MSG::default();
         while GetMessageW(&mut msg, None, 0, 0).as_bool() {
@@ -138,7 +146,11 @@ unsafe extern "system" fn wndproc(
             awake::disable();
             tray::remove_tray_icon(hwnd);
             STATE.with(|s| {
-                if let Some(icon) = s.borrow().icon_handle {
+                let state = s.borrow();
+                if let Some(icon) = state.active_icon {
+                    let _ = DestroyIcon(icon);
+                }
+                if let Some(icon) = state.idle_icon {
                     let _ = DestroyIcon(icon);
                 }
             });
@@ -208,6 +220,8 @@ fn handle_command(hwnd: HWND, cmd: u16) {
 fn update_tray_status(hwnd: HWND) {
     STATE.with(|s| {
         let state = s.borrow();
+        let active = state.timer_active || state.awake_active;
+        
         let tip = if state.timer_active {
             "Caffeinate \u{2014} timer active"
         } else if state.awake_active {
@@ -216,5 +230,15 @@ fn update_tray_status(hwnd: HWND) {
             "Caffeinate \u{2014} idle"
         };
         tray::update_tooltip(hwnd, tip);
+
+        if active {
+            if let Some(icon) = state.active_icon {
+                tray::update_icon(hwnd, icon);
+            }
+        } else {
+            if let Some(icon) = state.idle_icon {
+                tray::update_icon(hwnd, icon);
+            }
+        }
     });
 }

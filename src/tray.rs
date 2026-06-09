@@ -108,3 +108,15 @@ pub fn update_tooltip(hwnd: HWND, text: &str) {
         let _ = Shell_NotifyIconW(NIM_MODIFY, &nid);
     }
 }
+
+pub fn update_icon(hwnd: HWND, icon: HICON) {
+    unsafe {
+        let mut nid = NOTIFYICONDATAW::default();
+        nid.cbSize = std::mem::size_of::<NOTIFYICONDATAW>() as u32;
+        nid.hWnd = hwnd;
+        nid.uID = TRAY_ICON_ID;
+        nid.uFlags = NIF_ICON;
+        nid.hIcon = icon;
+        let _ = Shell_NotifyIconW(NIM_MODIFY, &nid);
+    }
+}
