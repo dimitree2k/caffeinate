@@ -124,8 +124,14 @@ unsafe extern "system" fn wndproc(
     match msg {
         WM_TRAY_CALLBACK => {
             let event = (lparam.0 & 0xFFFF) as u32;
-            if event == WM_RBUTTONUP || event == WM_LBUTTONUP {
-                tray::show_context_menu(hwnd);
+            match event {
+                WM_LBUTTONUP => {
+                    toggle_awake_state(hwnd);
+                }
+                WM_RBUTTONUP => {
+                    tray::show_context_menu(hwnd);
+                }
+                _ => {}
             }
             LRESULT(0)
         }
@@ -161,37 +167,42 @@ unsafe extern "system" fn wndproc(
     }
 }
 
+fn toggle_awake_state(hwnd: HWND) {
+    let (was_active, timer_was_active) = STATE.with(|s| {
+        let state = s.borrow();
+        (state.awake_active, state.timer_active)
+    });
+    if was_active {
+        awake::disable();
+        if timer_was_active {
+            timer::stop(hwnd);
+        }
+        STATE.with(|s| {
+            let mut state = s.borrow_mut();
+            state.awake_active = false;
+            state.timer_active = false;
+        });
+    } else {
+        if timer_was_active {
+            timer::stop(hwnd);
+        }
+        if awake::enable() {
+            STATE.with(|s| {
+                let mut state = s.borrow_mut();
+                state.awake_active = true;
+                state.timer_active = false;
+            });
+        } else {
+            tray::show_balloon(hwnd, "Caffeinate", "Failed to set keep-awake state.");
+        }
+    }
+    update_tray_status(hwnd);
+}
+
 fn handle_command(hwnd: HWND, cmd: u16) {
     match cmd {
         CMD_KEEP_AWAKE => {
-            let (was_active, timer_was_active) = STATE.with(|s| {
-                let state = s.borrow();
-                (state.awake_active, state.timer_active)
-            });
-            if was_active {
-                awake::disable();
-                if timer_was_active {
-                    timer::stop(hwnd);
-                }
-                STATE.with(|s| {
-                    let mut state = s.borrow_mut();
-                    state.awake_active = false;
-                    state.timer_active = false;
-                });
-            } else {
-                if timer_was_active {
-                    timer::stop(hwnd);
-                }
-                if awake::enable() {
-                    STATE.with(|s| {
-                        let mut state = s.borrow_mut();
-                        state.awake_active = true;
-                        state.timer_active = false;
-                    });
-                } else {
-                    tray::show_balloon(hwnd, "Caffeinate", "Failed to set keep-awake state.");
-                }
-            }
+            toggle_awake_state(hwnd);
         }
         CMD_TIMER_15 => timer::start(hwnd, 15),
         CMD_TIMER_30 => timer::start(hwnd, 30),
