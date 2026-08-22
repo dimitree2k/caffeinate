@@ -31,6 +31,7 @@ pub struct AppState {
     pub hwnd: HWND,
     pub awake_active: bool,
     pub timer_active: bool,
+    pub timer_tip: Option<String>,
     pub dialog_open: bool,
     pub blackout_hwnd: Option<HWND>,
     pub active_icon: Option<HICON>,
@@ -43,6 +44,7 @@ impl Default for AppState {
             hwnd: HWND::default(),
             awake_active: false,
             timer_active: false,
+            timer_tip: None,
             dialog_open: false,
             blackout_hwnd: None,
             active_icon: None,
@@ -255,15 +257,18 @@ fn update_tray_status(hwnd: HWND) {
         let active = state.timer_active || state.awake_active;
 
         let tip = if state.timer_active {
-            "Caffeinate \u{2014} timer active"
+            state
+                .timer_tip
+                .clone()
+                .unwrap_or_else(|| "Caffeinate \u{2014} timer active".into())
         } else if state.awake_active {
-            "Caffeinate \u{2014} keeping awake"
+            "Caffeinate \u{2014} keeping awake".to_string()
         } else {
-            "Caffeinate \u{2014} idle"
+            "Caffeinate \u{2014} idle".to_string()
         };
 
         if let Some(icon) = if active { state.active_icon } else { state.idle_icon } {
-            tray::update_status(hwnd, tip, icon);
+            tray::update_status(hwnd, &tip, icon);
         }
     });
 }
