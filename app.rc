@@ -1,1 +1,26 @@
 1 ICON "caffeinate.ico"
+
+// PE version metadata — AV heuristics treat its absence as suspicious
+1 VERSIONINFO
+FILEVERSION 0,4,3,0
+PRODUCTVERSION 0,4,3,0
+BEGIN
+  BLOCK "StringFileInfo"
+  BEGIN
+    BLOCK "040904B0"
+    BEGIN
+      VALUE "CompanyName", "dimitree2k"
+      VALUE "FileDescription", "Caffeinate - keeps your PC awake"
+      VALUE "FileVersion", "0.4.3.0"
+      VALUE "InternalName", "caffeinate"
+      VALUE "LegalCopyright", "MIT License"
+      VALUE "OriginalFilename", "caffeinate.exe"
+      VALUE "ProductName", "Caffeinate"
+      VALUE "ProductVersion", "0.4.3"
+    END
+  END
+  BLOCK "VarFileInfo"
+  BEGIN
+    VALUE "Translation", 0x0409, 0x04B0
+  END
+END
