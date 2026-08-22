@@ -85,7 +85,7 @@ unsafe extern "system" fn blackout_proc(
     hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM,
 ) -> LRESULT {
     match msg {
-        WM_KEYDOWN | WM_LBUTTONDOWN => {
+        WM_KEYDOWN | WM_SYSKEYDOWN | WM_LBUTTONDOWN | WM_RBUTTONDOWN | WM_MBUTTONDOWN => {
             dismiss_blackout(hwnd);
             LRESULT(0)
         }

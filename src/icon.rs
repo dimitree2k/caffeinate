@@ -132,13 +132,13 @@ fn create_placeholder_icon(color_hex: u32) -> Result<HICON> {
             hbmColor: bmp_color,
         };
 
-        let icon = CreateIconIndirect(&icon_info)?;
-
+        // CreateIconIndirect copies the bitmaps, so delete them regardless of outcome
+        let result = CreateIconIndirect(&icon_info);
         let _ = DeleteObject(bmp_color);
         let _ = DeleteObject(bmp_mask);
         let _ = DeleteDC(hdc_mem);
         ReleaseDC(None, hdc_screen);
 
-        Ok(icon)
+        result
     }
 }

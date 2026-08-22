@@ -101,26 +101,16 @@ pub fn show_balloon(hwnd: HWND, title: &str, message: &str) {
     }
 }
 
-pub fn update_tooltip(hwnd: HWND, text: &str) {
+/// Single NIM_MODIFY carrying both icon and tooltip.
+pub fn update_status(hwnd: HWND, tip: &str, icon: HICON) {
     unsafe {
         let mut nid = NOTIFYICONDATAW::default();
         nid.cbSize = std::mem::size_of::<NOTIFYICONDATAW>() as u32;
         nid.hWnd = hwnd;
         nid.uID = TRAY_ICON_ID;
-        nid.uFlags = NIF_TIP;
-        wstr_copy(&mut nid.szTip, text);
-        let _ = Shell_NotifyIconW(NIM_MODIFY, &nid);
-    }
-}
-
-pub fn update_icon(hwnd: HWND, icon: HICON) {
-    unsafe {
-        let mut nid = NOTIFYICONDATAW::default();
-        nid.cbSize = std::mem::size_of::<NOTIFYICONDATAW>() as u32;
-        nid.hWnd = hwnd;
-        nid.uID = TRAY_ICON_ID;
-        nid.uFlags = NIF_ICON;
+        nid.uFlags = NIF_ICON | NIF_TIP;
         nid.hIcon = icon;
+        wstr_copy(&mut nid.szTip, tip);
         let _ = Shell_NotifyIconW(NIM_MODIFY, &nid);
     }
 }

@@ -11,8 +11,9 @@ use crate::STATE;
 const DLG_WIDTH: i32 = 260;
 const DLG_HEIGHT: i32 = 130;
 const ID_EDIT: i32 = 301;
-const ID_OK: i32 = 302;
-const ID_CANCEL: i32 = 303;
+// Standard IDs so IsDialogMessageW routes Enter/Esc to OK/Cancel natively
+const ID_OK: i32 = IDOK.0;
+const ID_CANCEL: i32 = IDCANCEL.0;
 
 thread_local! {
     static DIALOG_RESULT: Cell<Option<u32>> = Cell::new(None);
@@ -135,9 +136,9 @@ pub fn show_custom_timer_dialog(parent: HWND) -> Option<u32> {
 
         STATE.with(|s| s.borrow_mut().dialog_open = true);
 
-        // Local message loop
+        // GetMessageW returns -1 on error; treat only positive values as "keep going"
         let mut msg = MSG::default();
-        while GetMessageW(&mut msg, None, 0, 0).as_bool() {
+        while GetMessageW(&mut msg, None, 0, 0).0 > 0 {
             if !IsDialogMessageW(dlg, &msg).as_bool() {
                 let _ = TranslateMessage(&msg);
                 DispatchMessageW(&msg);

@@ -118,8 +118,9 @@ fn main() -> Result<()> {
             state.idle_icon = Some(idle_icon);
         });
 
+        // GetMessageW returns -1 on error; treat only positive values as "keep going"
         let mut msg = MSG::default();
-        while GetMessageW(&mut msg, None, 0, 0).as_bool() {
+        while GetMessageW(&mut msg, None, 0, 0).0 > 0 {
             let _ = TranslateMessage(&msg);
             DispatchMessageW(&msg);
         }
@@ -260,16 +261,9 @@ fn update_tray_status(hwnd: HWND) {
         } else {
             "Caffeinate \u{2014} idle"
         };
-        tray::update_tooltip(hwnd, tip);
 
-        if active {
-            if let Some(icon) = state.active_icon {
-                tray::update_icon(hwnd, icon);
-            }
-        } else {
-            if let Some(icon) = state.idle_icon {
-                tray::update_icon(hwnd, icon);
-            }
+        if let Some(icon) = if active { state.active_icon } else { state.idle_icon } {
+            tray::update_status(hwnd, tip, icon);
         }
     });
 }
