@@ -36,11 +36,12 @@ fn create_icon_from_ico(ico_bytes: &[u8]) -> Result<HICON> {
         let target_cx = if target_cx <= 0 { 16 } else { target_cx };
         let target_cy = if target_cy <= 0 { 16 } else { target_cy };
 
-        let mut best_index = 0;
-        let mut best_diff = i32::MAX;
-        let mut best_is_larger = false;
-
         // Traverse the icon directory to find the best match for our target size.
+        // Scoring: exact match first, then downscaling (smallest size above
+        // target), then upscaling (largest size below target).
+        let mut best_index = 0;
+        let mut best_score = (u32::MAX, u32::MAX);
+
         for i in 0..count {
             let entry_offset = 6 + i * 16;
             if entry_offset + 16 > ico_bytes.len() {
@@ -48,30 +49,17 @@ fn create_icon_from_ico(ico_bytes: &[u8]) -> Result<HICON> {
             }
             let w = ico_bytes[entry_offset] as i32;
             let w = if w == 0 { 256 } else { w };
-            
-            let diff = w - target_cx;
-            
-            // Prefer an exact match.
-            // Otherwise, prefer downscaling (the smallest size larger than target) over upscaling (the largest size smaller than target).
-            let is_better = if diff == 0 {
-                true
-            } else if best_diff == i32::MAX {
-                true
-            } else if diff > 0 && !best_is_larger {
-                true
-            } else if diff > 0 && best_is_larger {
-                diff < best_diff
-            } else if diff < 0 && !best_is_larger {
-                diff > best_diff
-            } else {
-                false
+
+            let score = match w - target_cx {
+                0 => (0, 0),
+                diff if diff > 0 => (0, diff as u32),
+                diff => (1, (-diff) as u32),
             };
 
-            if is_better {
+            if score < best_score {
+                best_score = score;
                 best_index = i;
-                best_diff = diff;
-                best_is_larger = diff >= 0;
-                if diff == 0 {
+                if score == (0, 0) {
                     break; // Exact match found
                 }
             }

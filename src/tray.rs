@@ -43,8 +43,12 @@ pub fn remove_tray_icon(hwnd: HWND) {
 
 pub fn show_context_menu(hwnd: HWND) {
     unsafe {
-        let menu = CreatePopupMenu().expect("CreatePopupMenu");
-        let timer_sub = CreatePopupMenu().expect("CreatePopupMenu");
+        // Degrade gracefully instead of panicking inside the message loop
+        let Ok(menu) = CreatePopupMenu() else { return };
+        let Ok(timer_sub) = CreatePopupMenu() else {
+            let _ = DestroyMenu(menu);
+            return;
+        };
 
         // Check mark for Keep Awake
         let awake_flags = STATE.with(|s| {

@@ -9,17 +9,24 @@ pub fn start(hwnd: HWND, minutes: u32) {
         // Cancel existing timer if running
         if state.timer_active {
             unsafe { let _ = KillTimer(hwnd, TIMER_ID); }
+            state.timer_active = false;
         }
         // Enable awake
-        crate::awake::enable();
-        state.awake_active = true;
-        state.timer_active = true;
-    });
+        state.awake_active = crate::awake::enable();
 
-    let duration_ms = minutes * 60 * 1000;
-    unsafe {
-        SetTimer(hwnd, TIMER_ID, duration_ms, None);
-    }
+        // Only mark active if the timer was actually created, otherwise the
+        // expiry never fires and the system is kept awake forever.
+        let duration_ms = minutes * 60 * 1000;
+        unsafe {
+            if SetTimer(hwnd, TIMER_ID, duration_ms, None) != 0 {
+                state.timer_active = true;
+            } else {
+                // No timer means no expiry: fall back to fully idle
+                crate::awake::disable();
+                state.awake_active = false;
+            }
+        }
+    });
 }
 
 pub fn stop(hwnd: HWND) {

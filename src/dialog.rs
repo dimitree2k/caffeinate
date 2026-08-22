@@ -6,6 +6,8 @@ use windows::Win32::UI::Input::KeyboardAndMouse::{EnableWindow, SetFocus};
 use windows::Win32::UI::WindowsAndMessaging::*;
 use windows::Win32::Graphics::Gdi::*;
 
+use crate::STATE;
+
 const DLG_WIDTH: i32 = 260;
 const DLG_HEIGHT: i32 = 130;
 const ID_EDIT: i32 = 301;
@@ -45,7 +47,8 @@ pub fn show_custom_timer_dialog(parent: HWND) -> Option<u32> {
         let x = (screen_w - DLG_WIDTH) / 2;
         let y = (screen_h - DLG_HEIGHT) / 2;
 
-        let dlg = CreateWindowExW(
+        // Degrade gracefully instead of panicking inside the message loop
+        let Ok(dlg) = CreateWindowExW(
             WS_EX_DLGMODALFRAME | WS_EX_TOPMOST,
             w!("CaffeinateDialog"),
             w!("Custom Timer"),
@@ -55,10 +58,12 @@ pub fn show_custom_timer_dialog(parent: HWND) -> Option<u32> {
             HMENU::default(),
             HINSTANCE(instance as _),
             None,
-        ).expect("CreateWindowExW dialog");
+        ) else {
+            return None;
+        };
 
         // Label
-        CreateWindowExW(
+        if CreateWindowExW(
             WINDOW_EX_STYLE::default(),
             w!("STATIC"),
             w!("Minutes:"),
@@ -68,10 +73,13 @@ pub fn show_custom_timer_dialog(parent: HWND) -> Option<u32> {
             HMENU::default(),
             HINSTANCE(instance as _),
             None,
-        ).expect("label");
+        ).is_err() {
+            let _ = DestroyWindow(dlg);
+            return None;
+        }
 
         // Edit (number-only via ES_NUMBER = 0x2000)
-        let edit = CreateWindowExW(
+        let Ok(edit) = CreateWindowExW(
             WS_EX_CLIENTEDGE,
             w!("EDIT"),
             w!("30"),
@@ -82,11 +90,14 @@ pub fn show_custom_timer_dialog(parent: HWND) -> Option<u32> {
             HMENU(ID_EDIT as _),
             HINSTANCE(instance as _),
             None,
-        ).expect("edit");
+        ) else {
+            let _ = DestroyWindow(dlg);
+            return None;
+        };
         EDIT_HANDLE.with(|h| h.set(edit));
 
         // OK button (BS_DEFPUSHBUTTON = 0x0001)
-        CreateWindowExW(
+        if CreateWindowExW(
             WINDOW_EX_STYLE::default(),
             w!("BUTTON"),
             w!("OK"),
@@ -96,10 +107,13 @@ pub fn show_custom_timer_dialog(parent: HWND) -> Option<u32> {
             HMENU(ID_OK as _),
             HINSTANCE(instance as _),
             None,
-        ).expect("ok button");
+        ).is_err() {
+            let _ = DestroyWindow(dlg);
+            return None;
+        }
 
         // Cancel button
-        CreateWindowExW(
+        if CreateWindowExW(
             WINDOW_EX_STYLE::default(),
             w!("BUTTON"),
             w!("Cancel"),
@@ -109,12 +123,17 @@ pub fn show_custom_timer_dialog(parent: HWND) -> Option<u32> {
             HMENU(ID_CANCEL as _),
             HINSTANCE(instance as _),
             None,
-        ).expect("cancel button");
+        ).is_err() {
+            let _ = DestroyWindow(dlg);
+            return None;
+        }
 
         // Disable parent (modal)
         let _ = EnableWindow(parent, false);
         let _ = ShowWindow(dlg, SW_SHOW);
         let _ = SetFocus(edit);
+
+        STATE.with(|s| s.borrow_mut().dialog_open = true);
 
         // Local message loop
         let mut msg = MSG::default();
@@ -128,6 +147,8 @@ pub fn show_custom_timer_dialog(parent: HWND) -> Option<u32> {
                 break;
             }
         }
+
+        STATE.with(|s| s.borrow_mut().dialog_open = false);
 
         // Re-enable parent
         let _ = EnableWindow(parent, true);

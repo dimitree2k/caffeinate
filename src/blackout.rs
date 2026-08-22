@@ -16,7 +16,13 @@ static BLACKOUT_CLASS_INIT: Once = Once::new();
 
 pub fn activate(parent: HWND) {
     unsafe {
-        let instance = GetModuleHandleW(None).expect("GetModuleHandleW");
+        let instance = match GetModuleHandleW(None) {
+            Ok(instance) => instance,
+            Err(_) => {
+                crate::tray::show_balloon(parent, "Caffeinate", "Failed to create blackout window.");
+                return;
+            }
+        };
 
         BLACKOUT_CLASS_INIT.call_once(|| {
             let class_name = w!("CaffeinateBlackout");

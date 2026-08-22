@@ -4,7 +4,7 @@ A lightweight system tray app that prevents your PC from sleeping — like macOS
 
 - single native exe
 - no .NET, no runtime
-- minimal footprint (~1.2 MB, <1 MB RAM)
+- minimal footprint (~256 KB, <1 MB RAM)
 
 ## Install
 
@@ -55,7 +55,7 @@ Output: `target/x86_64-pc-windows-gnu/release/caffeinate.exe`
 
 ### Custom icon
 
-Replace `caffeinate.ico` with your own `.ico` file (16×16 + 32×32, 32-bit RGBA) and rebuild. The icon is embedded at compile time.
+Replace `caffeinate.ico` with your own `.ico` file (16×16 + 32×32, 32-bit RGBA) and rebuild. The icon is embedded at compile time — both as the tray icon and as the application icon shown in Explorer (via `windres`; skipped automatically if unavailable).
 
 ## License
 

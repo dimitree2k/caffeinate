@@ -8,10 +8,11 @@ mod timer;
 mod tray;
 
 use std::cell::RefCell;
+use std::sync::atomic::{AtomicU32, Ordering};
 use windows::core::*;
 use windows::Win32::Foundation::*;
 use windows::Win32::System::LibraryLoader::GetModuleHandleW;
-use windows::Win32::System::Threading::{CreateMutexW, OpenMutexW, MUTEX_ALL_ACCESS};
+use windows::Win32::System::Threading::CreateMutexW;
 use windows::Win32::UI::WindowsAndMessaging::*;
 
 pub const WM_TRAY_CALLBACK: u32 = WM_USER + 1;
@@ -30,6 +31,7 @@ pub struct AppState {
     pub hwnd: HWND,
     pub awake_active: bool,
     pub timer_active: bool,
+    pub dialog_open: bool,
     pub blackout_hwnd: Option<HWND>,
     pub active_icon: Option<HICON>,
     pub idle_icon: Option<HICON>,
@@ -41,6 +43,7 @@ impl Default for AppState {
             hwnd: HWND::default(),
             awake_active: false,
             timer_active: false,
+            dialog_open: false,
             blackout_hwnd: None,
             active_icon: None,
             idle_icon: None,
@@ -51,6 +54,8 @@ impl Default for AppState {
 thread_local! {
     pub static STATE: RefCell<AppState> = RefCell::new(AppState::default());
 }
+
+static TASKBAR_CREATED: AtomicU32 = AtomicU32::new(0);
 
 // DPI awareness via raw FFI
 #[link(name = "user32")]
@@ -64,12 +69,17 @@ fn main() -> Result<()> {
         // Declare DPI awareness — prevents blurry text scaling
         SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
 
-        // Single-instance guard
-        if OpenMutexW(MUTEX_ALL_ACCESS, false, w!("CaffeinateAppMutex")).is_ok() {
+        // Single-instance guard: CreateMutexW succeeds even if the mutex already
+        // exists, so the ownership check must go through GetLastError.
+        let _mutex = CreateMutexW(None, false, w!("CaffeinateAppMutex"))?;
+        if GetLastError() == ERROR_ALREADY_EXISTS {
             return Ok(()); // Another instance is already running
         }
-        let _mutex = CreateMutexW(None, false, w!("CaffeinateAppMutex"))?;
-        let _ = _mutex; // Keep alive until process exits
+
+        TASKBAR_CREATED.store(
+            RegisterWindowMessageW(w!("TaskbarCreated")),
+            Ordering::Relaxed,
+        );
 
         let instance = GetModuleHandleW(None)?;
         let class_name = w!("CaffeinateClass");
@@ -121,17 +131,27 @@ fn main() -> Result<()> {
 unsafe extern "system" fn wndproc(
     hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM,
 ) -> LRESULT {
+    let taskbar_created = TASKBAR_CREATED.load(Ordering::Relaxed);
+    if taskbar_created != 0 && msg == taskbar_created {
+        restore_tray_icon(hwnd);
+        return LRESULT(0);
+    }
     match msg {
         WM_TRAY_CALLBACK => {
-            let event = (lparam.0 & 0xFFFF) as u32;
-            match event {
-                WM_LBUTTONUP => {
-                    toggle_awake_state(hwnd);
+            // Swallow tray input while the modal dialog owns the thread;
+            // re-entrant Quit here would leave a windowless zombie process.
+            let dialog_open = STATE.with(|s| s.borrow().dialog_open);
+            if !dialog_open {
+                let event = (lparam.0 & 0xFFFF) as u32;
+                match event {
+                    WM_LBUTTONUP => {
+                        toggle_awake_state(hwnd);
+                    }
+                    WM_RBUTTONUP => {
+                        tray::show_context_menu(hwnd);
+                    }
+                    _ => {}
                 }
-                WM_RBUTTONUP => {
-                    tray::show_context_menu(hwnd);
-                }
-                _ => {}
             }
             LRESULT(0)
         }
@@ -232,7 +252,7 @@ fn update_tray_status(hwnd: HWND) {
     STATE.with(|s| {
         let state = s.borrow();
         let active = state.timer_active || state.awake_active;
-        
+
         let tip = if state.timer_active {
             "Caffeinate \u{2014} timer active"
         } else if state.awake_active {
@@ -252,4 +272,20 @@ fn update_tray_status(hwnd: HWND) {
             }
         }
     });
+}
+
+fn restore_tray_icon(hwnd: HWND) {
+    let icon = STATE.with(|s| {
+        let state = s.borrow();
+        if state.timer_active || state.awake_active {
+            state.active_icon
+        } else {
+            state.idle_icon
+        }
+    });
+    if let Some(icon) = icon {
+        if tray::add_tray_icon(hwnd, icon).is_ok() {
+            update_tray_status(hwnd);
+        }
+    }
 }
