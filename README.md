@@ -14,6 +14,8 @@ No registry entries, no services, no dependencies, no setup wizard. One file —
 
 Windows SmartScreen may warn on first launch — click **"More info" → "Run anyway"**.
 
+Every release exe is built automatically by [GitHub Actions](.github/workflows/release.yml), so each binary can be traced to the exact commit that produced it. Releases include a `SHA256SUMS` file to verify your download.
+
 ## Features
 
 - **Keep Awake** — toggle to prevent sleep and display off indefinitely

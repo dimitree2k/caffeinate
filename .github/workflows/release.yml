@@ -1,0 +1,58 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install cross toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-mingw-w64-x86-64 osslsigncode
+
+      - name: Set up Rust target
+        run: rustup target add x86_64-pc-windows-gnu
+
+      - name: Build
+        run: cargo build --target x86_64-pc-windows-gnu --release
+
+      # Signing is optional so the workflow also works before secrets exist
+      - name: Detect signing secrets
+        id: secrets
+        run: echo "present=${{ secrets.SIGNING_PFX != '' }}" >> "$GITHUB_OUTPUT"
+
+      - name: Sign exe
+        if: steps.secrets.outputs.present == 'true'
+        env:
+          SIGNING_PFX: ${{ secrets.SIGNING_PFX }}
+          SIGNING_PASS: ${{ secrets.SIGNING_PASS }}
+        run: |
+          echo "$SIGNING_PFX" | base64 -d > /tmp/cert.pfx
+          osslsigncode sign -pkcs12 /tmp/cert.pfx -pass "$SIGNING_PASS" \
+            -n "Caffeinate" -t http://timestamp.digicert.com \
+            -in target/x86_64-pc-windows-gnu/release/caffeinate.exe \
+            -out /tmp/caffeinate-signed.exe
+          mv /tmp/caffeinate-signed.exe target/x86_64-pc-windows-gnu/release/caffeinate.exe
+          rm -f /tmp/cert.pfx
+
+      - name: Checksums
+        working-directory: target/x86_64-pc-windows-gnu/release
+        run: sha256sum caffeinate.exe > "$GITHUB_WORKSPACE/SHA256SUMS"
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            target/x86_64-pc-windows-gnu/release/caffeinate.exe \
+            SHA256SUMS \
+            --generate-notes --title "$GITHUB_REF_NAME"
