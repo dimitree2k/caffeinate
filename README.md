@@ -16,6 +16,14 @@ Windows SmartScreen may warn on first launch — click **"More info" → "Run an
 
 Every release exe is built automatically by [GitHub Actions](.github/workflows/release.yml), so each binary can be traced to the exact commit that produced it. Releases include a `SHA256SUMS` file to verify your download.
 
+## Trust & verification
+
+- **Built by CI** — every binary is compiled on GitHub's public infrastructure; the workflow run behind each release is inspectable, no builds leave someone's laptop
+- **Checksums** — verify your download against `SHA256SUMS`: `sha256sum -c SHA256SUMS` (or `Get-FileHash` in PowerShell)
+- **Code-signed** — the exe carries an Authenticode signature with timestamping: check with `Get-AuthenticodeSignature caffeinate.exe`
+- **Signed source history** — release tags are GPG-signed and show as *Verified* on GitHub (`git verify-tag v0.4.3`)
+- **winget** — install and update through the Microsoft community repository: `winget install caffeinate`
+
 ## Features
 
 - **Keep Awake** — toggle to prevent sleep and display off indefinitely
